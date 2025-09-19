@@ -8,7 +8,7 @@ import random
 
 headers = {
 
-    "Content-Type: application/json"
+    "Content-Type": "application/json"
 
 }
 def furnacePush(sensorId, value):
@@ -27,12 +27,14 @@ def furnacePush(sensorId, value):
 
     # API endpoint
 
-    url = "http://collectorip:8000/esp/receive_send"
- 
+    url = "http://192.168.140.146:8000/esp/receive_send"
+    
 
     # Send the data as JSON
-
-    response = requests.post(url, json=data, headers=headers)
+    try:
+        response = requests.post(url, json=data, headers=headers)
+    except Exception as e:
+        print(str(e))
 
     print(response.json())
 
@@ -40,8 +42,5 @@ def furnacePush(sensorId, value):
 
 
    
-
-# while True:
-
-#     furnacePush(15, 10)
-#     time.sleep(60)
+returnCode = furnacePush(15, 10)
+print(returnCode)

@@ -3,8 +3,15 @@ import numpy as np
 import os
 import time
 import cv2.aruco as aruco
+from pathlib import Path
+import json
 
 #lets try a dynamic cropping and fall into static cropping if it does not work too well
+
+
+BASE_DIR   = Path(__file__).parents[0].resolve()
+
+COORD_FILE  = BASE_DIR / "setup" /"coordinates.json"
 
 def arucocap():
     frame = cv2.imread("images/highres.jpg")
@@ -49,29 +56,16 @@ def arucocap():
 def cropStaticFurnaces(static_points, imagePath, tube):
     readImage = cv2.imread(imagePath)
 
-
-
-    fixed_points = [[static_points[0][0] + 32, static_points[0][1] + 45, 25, 55],
-                    [static_points[0][0] + 32, static_points[0][1] + 158, 25, 55],
-                    [static_points[0][0] + 32, static_points[0][1] + 286, 25, 55],
-                    [static_points[0][0] + 38, static_points[0][1] + 404, 25, 55],
-                    [static_points[1][0] + 56, static_points[1][1] + 54, 25, 55],
-                    [static_points[1][0] + 56, static_points[1][1] + 187, 25, 55],
-                    [static_points[1][0] + 59, static_points[1][1] + 317, 25, 55],
-                    [static_points[1][0] + 59, static_points[1][1] + 450, 25, 55],
-                    [static_points[2][0] - 12, static_points[2][1] + 42, 25, 55],
-                    [static_points[2][0] - 9, static_points[2][1] + 175, 25, 55],
-                    [static_points[2][0] - 9, static_points[2][1] + 303, 25, 55],
-                    [static_points[2][0] - 10, static_points[2][1] + 428, 25, 55]]
-
-    x, y, w, h = fixed_points[tube]
+    x, y, w, h = static_points[tube]
 
     cropped = readImage[y: y+h, x: x+w]
     cv2.imwrite(f"preprocess/croppedimg{tube}.jpg",  cropped)
     return cropped
 
+
+
 #processes the image into black and white
-def detectLight(image, tube):
+def apply_filter(image, tube):
 
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
@@ -80,30 +74,49 @@ def detectLight(image, tube):
 
     mask_combined = cv2.inRange(hsv, lower_white, upper_white)
 
-    kernel = np.ones((2, 2), np.uint8)
-    mask_eroded = cv2.erode(mask_combined, kernel, iterations=1)
-
-    mask_bgr = cv2.cvtColor(mask_eroded, cv2.COLOR_GRAY2BGR)
+    mask_bgr = cv2.cvtColor(mask_combined, cv2.COLOR_GRAY2BGR)
 
     height, width = mask_bgr.shape[:2]
 
 
     border_color = (0, 0, 255)  # Red in BGR
-    thickness = 2
+    thickness = 1
+    cv2.rectangle(mask_bgr, (0, 0), (width, height), border_color, thickness)
+
+    thirdHeight = height // 3
+
+    thirdOfSect = thirdHeight // 3
+
+    thirdWidth = width // 3
+
+    #RECTANGLES FOR EACH 1/3
+    rectangle_color = (0, 0, 0)
+    cv2.rectangle(mask_bgr, (0,0), (width, thirdOfSect), rectangle_color, -1)
+    cv2.rectangle(mask_bgr, (0, 2 * thirdOfSect), (width, 3*thirdOfSect), rectangle_color, -1)
+
+
+    cv2.rectangle(mask_bgr, (0,  3 * thirdOfSect), (width, 4 * thirdOfSect), rectangle_color, -1)
+    cv2.rectangle(mask_bgr, (0, 5 * thirdOfSect), (width, 6 * thirdOfSect), rectangle_color, -1)
+
+    cv2.rectangle(mask_bgr, (0, (6*thirdOfSect)), (width, (7 * thirdOfSect)), rectangle_color, -1)
+    cv2.rectangle(mask_bgr, (0, 8 * thirdOfSect), (width, 9 * thirdOfSect), rectangle_color, -1)
+
+    #HORIZONTAL RECTANGLES FOR EACH 1/3 * W
+
+    cv2.rectangle(mask_bgr, (0, 0), (thirdWidth, 3 * thirdHeight), rectangle_color, -1)
+    cv2.rectangle(mask_bgr, (2 * thirdWidth, 0), (3 * thirdWidth, 3 * thirdHeight), rectangle_color, -1)
+
+    #LINE for thirds
     cv2.rectangle(mask_bgr, (0, 0), (width - 1, height - 1), border_color, thickness)
-
-
-    third = height // 3
-    cv2.line(mask_bgr, (0, third), (width, third), border_color, 1)
-    cv2.line(mask_bgr, (0, third * 2), (width, third * 2), border_color, 1)
-
-
-
+    cv2.line(mask_bgr, (0, thirdHeight), (width, thirdHeight), border_color, 1)
+    cv2.line(mask_bgr, (0, thirdHeight * 2), (width, thirdHeight*2), border_color, 1)
 
     save_path = f"preprocess/processedImage{tube}.png"
     cv2.imwrite(save_path, mask_bgr)
 
     return save_path
+
+
 
 
 
@@ -168,13 +181,13 @@ def classifyColor(image, tube):
     green = False
 
  
-    if(top_sum > 100):
+    if(top_sum > 0):
         # print(f"tube {tube+1}: RED ON")
         red = True
-    if(middle_sum > 100):
+    if(middle_sum > 0):
         # print(f"tube {tube+1}: ORANGE ON")
         orange =  True
-    if(bottom_sum > 100):
+    if(bottom_sum > 0):
         # print(f"tube {tube+1}: GREEN ON")
         green = True
 
@@ -214,17 +227,36 @@ def configure_points():
     def show_coordinates(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
             print(f"X: {x}, Y: {y}")
-
-    img = cv2.imread("images/highres.jpg")
+    img = cv2.imread("images/highres (1).jpg")
     cv2.namedWindow("image")
     cv2.setMouseCallback("image", show_coordinates)
 
+
     while True:
         cv2.imshow("image", img)
+        key = cv2.waitKey(1) & 0xFF
+        if (key == ord("j") or key == ord("J")):
+            try:
+                window_existence = cv2.getWindowProperty("crop", cv2.WND_PROP_VISIBLE)
+                if (window_existence):
+                    saved_coordinates.append(pressed_coordinates[-1])
+                    print(f"""saved coordinates: {saved_coordinates}""")
+                    cv2.destroyWindow("crop")
+                    cv2.destroyWindow("no mask crop")
+            except:
+                pass
+        elif (key == ord("k") or key == ord("K")):
+            try: 
+                if (cv2.getWindowProperty("crop", cv2.WND_PROP_VISIBLE)):
+                    cv2.destroyWindow("crop")
+                    cv2.destroyWindow("no mask crop")
+            except:
+                pass
         if cv2.waitKey(1) & 0xFF == 27:
             break
 
     cv2.destroyAllWindows()
+    return saved_coordinates
 
 def capture1080p():
     cap = cv2.VideoCapture(0)
@@ -248,10 +280,8 @@ def capture1080p():
 
 
 
-
-
 # img = cv2.imread("images/stack.jpeg")
-# detectLight(img)
+# apply_filter(img)
 # processedPath = "preprocess/processedImage.png"
 # classifyColor(processedPath)
 # textinput = input("q to quit(): ")
@@ -259,33 +289,67 @@ def capture1080p():
 #     os.remove("preprocess/processedImage.png")
 
 # capture1080p()
-# configure_points()
 
 
 
-while True:
-
-    capture1080p()
-    capture1080p()
-
-    static_points = arucocap()
-    if len(static_points) != 3:
-        break
-
-    for i in range(0, 12):
-        croppedImg = cropStaticFurnaces(static_points, "images/highres.jpg", i)
-        filePath = detectLight(croppedImg, i)
-        # filePath = f"preprocess/processedImage{i}.png"
-        valid = classifyColor(filePath, i)
-        if not valid:
-            break
-    
-    if i < 12:
-        continue
+def read_data():
+    if COORD_FILE.exists():
+        with open(COORD_FILE, 'r') as f:
+            return json.load(f)
     else:
-        time.sleep(120)
+        print("array has nothing")
+        return []
 
 
+# while True:
+
+#     # capture1080p()
+#     # capture1080p()
+
+#     # static_points = arucocap()
+
+
+#     static_points = read_data()
+
+#     print(static_points)
+#     print(len(static_points))
+    
+
+#     time.sleep(120)
+
+#     cropStaticFurnaces(static_points, "images/highres (1).jpg", 0)
+
+#     # if len(static_points) != 3:
+#     #     break
+
+#     for i in range(0, 12):
+#         croppedImg = cropStaticFurnaces(static_points, "images/highres (1).jpg", i)
+#         filePath = apply_filter(croppedImg, i)
+#         # filePath = f"preprocess/processedImage{i}.png"
+#         valid = classifyColor(filePath, i)
+#         if not valid:
+#             break
+    
+#     if i < 12: #means that we didnt get to all of the furnace lights because of some distraction
+#         continue
+#     else:
+#         time.sleep(120)
+
+
+
+
+static_points = read_data()
+
+
+print(static_points)
+print(len(static_points))
+
+
+
+
+cropped = cropStaticFurnaces(static_points, "images/highres (1).jpg", 0)
+filter_cropped = apply_filter(cropped, 0)
+classifyColor(filter_cropped, 0)
 
 # capture1080p()
 # capture1080p()
