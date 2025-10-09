@@ -1,0 +1,323 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>RFS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0f1013;
+      --text:#f2f4f7;
+      --muted:#c8cfda;
+      --brand: rgba(152, 0, 0, 1); /* deep red */
+      --panel:#14161b;
+      --border:#22262f;
+      --shadow: 0 20px 60px rgba(0,0,0,.35);
+      --radius: 14px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background: radial-gradient(1200px 800px at 20% -10%, #1a202a 0%, #0f1115 55%, #0b0d10 100%);
+      color:var(--text);
+      font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      letter-spacing:.2px;
+    }
+
+    /* NAVBAR */
+    .nav{
+      position:sticky; top:0; z-index:10;
+      display:flex; align-items:center; gap:16px;
+      padding: 14px 18px;
+      background: var(--brand);
+      color:#fff;
+      box-shadow: 0 2px 0 rgba(0,0,0,.25);
+    }
+    .nav-left{
+      font-weight:800; font-size:20px; letter-spacing:.4px; text-shadow:0 1px 0 rgba(0,0,0,.35);
+    }
+    .nav-spacer{flex:1}
+    .nav-actions{display:flex; align-items:center; gap:10px; justify-content: center;}
+
+    /* Buttons in navbar */
+    .btn{
+      all:unset;
+      cursor:pointer;
+      user-select:none;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+
+      padding:8px 16px;
+      border-radius:10px;
+      font-weight:700;
+
+      background:#fff;             /* white background */
+      color:rgba(152, 0, 0, 1);    /* deep red text */
+      border:1px solid rgba(152, 0, 0, 0.3);
+
+      transition:transform .06s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
+    }
+
+    .btn:hover{
+      background:rgba(152, 0, 0, 0.08);   /* faint red tint when hovered */
+      color:rgba(152, 0, 0, 1);
+      transform:translateY(-1px);
+      box-shadow:0 6px 18px rgba(0,0,0,.25);
+      color: white;
+    }
+
+    .btn:active{
+      transform:none;
+      background:rgba(152, 0, 0, 0.15);
+    }
+    .btn-ghost{ background: rgba(0,0,0,.22); }
+
+    /* Logo slot (right side) */
+    .logo-slot{
+      width:35px; height:35px; border-radius:8px; margin-left:4px;
+      display:grid; place-items:center; background: rgb(255, 255, 255);
+      border:1px solid rgba(255,255,255,.25);
+    }
+    .logo-slot img{ width:32px; height:32px; display:block; }
+
+    /* PAGE BODY */
+    .wrap{
+      max-width: 1400px;
+      margin: 18px auto 42px;
+      padding: 0 18px;
+    }
+
+    /* Centered drawing container exactly 720 x 1280 (display size) */
+    .stage-wrap{
+      width:1280px; height:720px;   /* requested visible size */
+      margin: 24px auto 0;
+      background:#0a0c10;
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      display:flex; align-items:center; justify-content:center;
+    }
+
+    /* Keep your canvas; display at 720x1280 without stretching logic in JS */
+    #c{
+      display:block;
+      width:1280px;   /* visible size */
+      height:720px; /* visible size */
+      background:#000;
+      border-radius: 10px;
+      box-shadow: inset 0 0 0 1px #202531;
+    }
+
+    /* Log panel (subtle, optional) */
+    #log{
+      width:1280px; margin:12px auto 0;
+      white-space:pre; font:12px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background:#0b0d12; color:#cfe0ff;
+      padding:10px; border-radius:10px; border:1px solid var(--border);
+      max-height:160px; overflow:auto;
+    }
+
+    /* ---- Keep your popup styling & classes as-is ---- */
+    .backdrop{
+      display:none; position:fixed; inset:0; z-index:999;
+      background: rgba(8, 12, 16, .66); backdrop-filter: blur(2px);
+    }
+    #popup{
+      display:none; position:fixed; z-index:1000;
+      top:50%; left:50%; transform:translate(-50%,-50%);
+      background: linear-gradient(180deg, #141922 0%, #0f141c 100%);
+      border:1px solid #273041; border-radius:16px; padding:18px;
+      width:min(92vw, 720px); box-shadow: var(--shadow);
+    }
+    .popup-header{
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #232a38;
+    }
+    .popup-title{ font-weight:700; color:#fff; letter-spacing:.3px; }
+    .popup-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+    .thumb{ border:1px solid #2a3342; border-radius:12px; padding:10px; background:#0b0f15; }
+    .thumb label{ display:block; text-align:center; color:#c7d3e6; font-size:12px; margin-bottom:8px; letter-spacing:.2px; }
+    .thumb img{ display:block; width:100%; height:auto; border-radius:8px; background:#000; }
+    .popup-actions{ display:flex; gap:10px; justify-content:center; }
+    .close-x{ cursor:pointer; width:34px; height:34px; border-radius:10px; display:grid; place-items:center; color:#c8d5e8; border:1px solid #2b3444; background:#141a23; }
+    .close-x:hover{ border-color:#384457; }
+    .sr-only{ position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden; }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <header class="nav">
+    <div class="nav-left">RFS</div>
+    <div class="nav-spacer"></div>
+
+    <div class="nav-actions" style="justify-content: center; align-items: center;">
+      <button id="undo" class="btn " title="Undo last">Undo</button>
+      <button id="clear" class="btn" title="Clear all">Clear All</button>
+
+  </header>
+
+
+  <main class="wrap">
+
+    <div class="stage-wrap">
+      <canvas id="c"></canvas>
+    </div>
+
+    <div id="log"></div>
+  </main>
+
+  <div id="backdrop" class="backdrop" aria-hidden="true"></div>
+  <div id="popup" role="dialog" aria-modal="true" aria-labelledby="popupHeading">
+    <div class="popup-header">
+      <div id="popupHeading" class="popup-title" style="text-align:center;">Review Selection</div>
+      <button id="popupClose" class="close-x" title="Close">
+        <span class="sr-only">Close</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6 6L18 18M18 6L6 18" stroke="#c8d5e8" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="popup-grid">
+      <div class="thumb">
+        <label>Control</label>
+        <img id="popupControl" src="" alt="Control preview">
+      </div>
+      <div class="thumb">
+        <label>Filtered</label>
+        <img id="popupFiltered" src="" alt="Filtered preview">
+      </div>
+    </div>
+    <div class="popup-actions">
+      <button id="popupReject" class="btn">Reject</button>
+      <button id="popupAccept" class="btn">Accept</button>
+    </div>
+  </div>
+
+  <script>
+
+
+    const cvs = document.getElementById('c');
+    const ctx = cvs.getContext('2d');
+    const logEl = document.getElementById('log');
+    const clearBtn = document.getElementById('clear');
+    const undoBtn = document.getElementById('undo');
+
+    const popup        = document.getElementById("popup");
+    const backdrop     = document.getElementById("backdrop");
+    const imgControl   = document.getElementById("popupControl");
+    const imgFiltered  = document.getElementById("popupFiltered");
+    const btnAccept    = document.getElementById("popupAccept");
+    const btnReject    = document.getElementById("popupReject");
+    const btnClose     = document.getElementById("popupClose");
+
+    const img = new Image();
+    let xScale = (1920/1280);
+    let yScale = (1080/720);
+    let dragging = false, ix = 0, iy = 0;
+    let overlayRects = [];
+
+    function log(msg){ logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
+
+    img.onload = () => {
+      draw();
+    };
+    img.src = "/image";
+
+    function draw(preview){
+      ctx.clearRect(0,0,cvs.width,cvs.height);
+      if (cvs.height !== 720 || cvs.width !== 1280){ cvs.height = 720; cvs.width = 1280; }
+      ctx.drawImage(img, 0, 0, cvs.width, cvs.height);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#ff4d4f";
+      overlayRects.forEach(r => ctx.strokeRect(r.x, r.y, r.w, r.h));
+      if (preview){
+        ctx.lineWidth = 1.5; ctx.setLineDash([6,5]);
+        ctx.strokeStyle = "lime";
+        ctx.strokeRect(preview.x, preview.y, preview.w, preview.h);
+        ctx.setLineDash([]);
+      }
+    }
+
+    function pointerPos(e){
+      const r = cvs.getBoundingClientRect();
+      const scaleX = cvs.width  / r.width;
+      const scaleY = cvs.height / r.height;
+      return { x: (e.clientX - r.left) * scaleX, y: (e.clientY - r.top) * scaleY };
+    }
+
+    cvs.onmousedown = e => { const p = pointerPos(e); ix = p.x; iy = p.y; dragging = true; };
+    cvs.onmousemove = e => {
+      if (!dragging) return;
+      const p = pointerPos(e);
+      const rx = Math.min(ix, p.x), ry = Math.min(iy, p.y);
+      const rw = Math.abs(p.x - ix), rh = Math.abs(p.y - iy);
+      draw({x: rx, y: ry, w: rw, h: rh});
+    };
+
+    function showPopUp({control, filtered}){
+      imgControl.src = control + "?" + Date.now();
+      imgFiltered.src = filtered + "?" + Date.now();
+      backdrop.style.display = "block"; popup.style.display = "block";
+      btnAccept.onclick = acceptFn; btnReject.onclick = rejectFn; btnClose.onclick = rejectFn;
+      backdrop.onclick = rejectFn; document.addEventListener('keydown', escCloser);
+    }
+    function hidePopUp(){
+      popup.style.display = "none"; backdrop.style.display = "none";
+      imgControl.src = ""; imgFiltered.src = "";
+      btnAccept.onclick = btnReject.onclick = btnClose.onclick = backdrop.onclick = null;
+      document.removeEventListener('keydown', escCloser);
+    }
+    function escCloser(e){ if (e.key === "Escape") hidePopUp(); }
+
+    cvs.onmouseup = async e => {
+      if (!dragging) return; dragging = false;
+      const p = pointerPos(e);
+      const rx = Math.round(Math.min(ix, p.x)), ry = Math.round(Math.min(iy, p.y));
+      const rw = Math.round(Math.abs(p.x - ix)), rh = Math.round(Math.abs(p.y - iy));
+      if (rw < 3 || rh < 3){ draw(); return; }
+
+      const orig = {
+        x: Math.round(rx * xScale),
+        y: Math.round(ry * yScale),
+        w: Math.round(rw * xScale),
+        h: Math.round(rh * yScale),
+      };
+      overlayRects.push({ x: rx, y: ry, w: rw, h: rh }); draw();
+
+      const res = await fetch("/rect", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orig)
+      });
+      const j = await res.json();
+      showPopUp({control: j.control_path, filtered: j.filtered_path});
+    };
+
+    async function acceptFn(){
+      hidePopUp();
+      const last = overlayRects[overlayRects.length - 1];
+      const res = await fetch("/accepted", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(last)
+      });
+      await res.json();
+    }
+    function rejectFn(){ hidePopUp(); overlayRects.pop(); draw(); }
+
+    document.getElementById('clear').onclick = async () => {
+      overlayRects = []; draw();
+      const res = await fetch("/cleared_xyz_parrow", { method:"POST", headers:{ "Content-Type":"application/json"} });
+      await res.json();
+    };
+    document.getElementById('undo').onclick = async () => {
+      overlayRects.pop(); draw();
+      const res = await fetch("/undo_last", { method:"POST", headers:{ "Content-Type":"application/json"} });
+      await res.json();
+    };
+  </script>
+</body>
+</html>
