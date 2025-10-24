@@ -14,7 +14,9 @@ from rfs.context import calContext
 app = FastAPI()
 
 BASE_DIR   = Path(__file__).parents[1].resolve()
-IMAGE_PATH = BASE_DIR/ "images" / "highres (1).jpg"
+
+
+IMAGE_PATH = BASE_DIR /"images" / "webcamPicture.jpg"
 HTML_PATH  = BASE_DIR / "setup" /"calServer.html"
 COORD_FILE = BASE_DIR / "setup" / "coordinates.json"
 ARUCO_COORD_FILE = BASE_DIR / "setup" / "aruco_coord.json"
@@ -42,9 +44,10 @@ class Rect(BaseModel):
 def apply_filter(image_path):
     img = cv2.imread(image_path)
 
+
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-    lower_white = np.array([0, 0, 200])
+    lower_white = np.array([0, 0, 230])
     upper_white = np.array([180, 40, 255])
 
     mask_combined = cv2.inRange(hsv, lower_white, upper_white)

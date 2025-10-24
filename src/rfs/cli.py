@@ -11,8 +11,11 @@ from rfs.context import calContext
 
 
 
-BASE_DIR = Path(__file__).parents[1].resolve()
+BASE_DIR = Path(__file__).parents[0].resolve()
+
+
 ARUCO_COORD_FILE = BASE_DIR / "setup" / "aruco_coord.json"
+IMAGE_PATH = BASE_DIR / "images" / "webcamPicture.jpg"
 
 
 
@@ -87,12 +90,12 @@ def cli(calibrate: bool, run_flag: bool):
 
     # Dispatch
     if calibrate:
-
+        
         ctx = calContext()
 
         keep = False
         while(not keep):
-            capturefirst1080p("pictureTaken.jpg")
+            capturefirst1080p("webcamPicture.jpg")
             keep = click.prompt("y to accept or n to reject image")
             if keep == 'y' or keep == 'Y':
                 keep = True
@@ -106,7 +109,7 @@ def cli(calibrate: bool, run_flag: bool):
                 click.secho("retrying...", fg = "yellow")
                 continue
             
-            id_position = arucocap("images/highres (1).jpg")
+            id_position = arucocap(IMAGE_PATH)
             if(len(id_position) == 0):
                 keep = False
                 click.secho("no aruco codes detected", fg = "red", bold=True)

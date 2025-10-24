@@ -226,7 +226,7 @@
     img.onload = () => {
       draw();
     };
-    img.src = "/image";
+    img.src = `/image?nocache=${Date.now()}`;
 
     function draw(preview){
       ctx.clearRect(0,0,cvs.width,cvs.height);

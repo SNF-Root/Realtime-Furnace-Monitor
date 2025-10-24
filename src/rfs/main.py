@@ -7,6 +7,7 @@ from pathlib import Path
 import json
 from rfs.setup.calServer import aruco_read_data
 from rfs.server import furnacePush
+import tkinter as tk 
 
 #lets try a dynamic cropping and fall into static cropping if it does not work too well
 
@@ -15,11 +16,10 @@ BASE_DIR   = Path(__file__).parents[0].resolve()
 
 COORD_FILE  = BASE_DIR / "setup" /"coordinates.json"
 
-# IMAGE_FILE = BASE_DIR/ "images" / "pictureTaken.jpg"
+IMAGE_FILE = BASE_DIR/ "images" / "pictureTaken.jpg"
 
-IMAGE_FILE = BASE_DIR/ "images" / "highres (1).jpg"
+PREPROCESS = BASE_DIR / "preprocess"
 
-PREPROCESS = BASE_DIR/ "preprocess"
 
 
 print(BASE_DIR)
@@ -100,10 +100,12 @@ def cropStaticFurnaces(aruco_points, static_points, imagePath, tube):
 
 #processes the image into black and white
 def apply_filter(image, tube):
+    
 
+    
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-    lower_white = np.array([0, 0, 200])
+    lower_white = np.array([0, 0, 230])
     upper_white = np.array([180, 40, 255])
 
     mask_combined = cv2.inRange(hsv, lower_white, upper_white)
@@ -229,24 +231,24 @@ def classifyColor(image, tube):
 
     if(not red and not orange and not green):
         print(f"tube {tube + 1}: VIEW OBSTRUCTED!")
-        return False   
+        return -1   
     else:
         if orange and green:
             print(f"Tube {tube+1}: Waiting for USER Input")
-            return 500
+            return 23
         elif green and red:
             print(f"Tube {tube+1}: WAITING FOR WAFER LOAD")
-            return 400
+            return 13
         else:
             if red:
                 print(f"Tube {tube+1}: ERROR! CONTACT STAFF")
-                return 300
+                return 1
             elif green:
                 print(f"Tube {tube+1}: Running Recipe")
-                return 100
+                return 3
             elif orange:
                 print(f"Tube {tube+1}: IDLE & Ready")
-                return 200
+                return 2
 
 
     print('--------------------------------------------')
@@ -297,7 +299,19 @@ def mitigate_bleeding(image):
 #     cv2.destroyAllWindows()
 #     return saved_coordinates
 
+def getWindowRes():
+    root = tk.Tk()
+    screen_width = root.winfo_screenwidth()
+    screen_heigth = root.winfo_screenheight()
+    root.destroy()
+    
+    win_w = screen_width // 2
+    win_h = screen_heigth // 2
+    
+    return win_w, win_h
+
 def capturefirst1080p(fileName):
+    
     cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
@@ -319,10 +333,18 @@ def capturefirst1080p(fileName):
     out_path = Path("images") / fileName
     cv2.imwrite(str(out_path), frame)
 
-    img = cv2.imread(f"""images/highres (1).jpg""")
+    img = cv2.imread(f"""images/{fileName}""")
 
     # show the frame directly (no re-read from disk)
+    
+    win_w, win_h = getWindowRes()
+    
     win = "Image Taken"
+    
+    cv2.namedWindow(win, cv2.WINDOW_NORMAL)
+    
+    cv2.resizeWindow(win, win_w, win_h)
+    
     cv2.imshow(win, img)
 
     # Let the window update and stay responsive for 1s
@@ -413,21 +435,33 @@ def capture1080p(fileName):
 
 
 def run_main():
-    static_points = aruco_read_data()
-    aruco_points = arucocap(IMAGE_FILE)
     counter = 0
-    nemo_ids = [22, 23, 24, 25]
+    nemo_ids = [22, 23, 24, 25, 19, 26, 20, 21, 15, 16, 17, 18]
     while True:
+        next_iter = True
+        static_points = aruco_read_data()
+        capture1080p("pictureTaken.jpg")
+        aruco_points = arucocap(IMAGE_FILE)
+        if len(aruco_points) != 3:
+            print(f"""------ITERATION BLOCKED (aruco not detected)-----""")
+            continue
         print(f"""---------------ITERATION: {counter + 1}-----------------""")
-        # capture1080p('pictureTaken.jpg')
+        capture1080p('pictureTaken.jpg')
         for i in range(len(static_points)):
             cropped = cropStaticFurnaces(aruco_points, static_points, IMAGE_FILE, i)
             filter_cropped = apply_filter(cropped, i)
             return_value = classifyColor(filter_cropped, i)
+            if return_value == -1:
+                print(f"""----------LIGHT NOT VISIBLE-----------""")
+                next_iter = False
+                break
             furnacePush(nemo_ids[i], return_value)
+        if not next_iter:
+            continue
         counter += 1
+        time.sleep(60)
 
-        time.sleep(10)
+    
             
 
 

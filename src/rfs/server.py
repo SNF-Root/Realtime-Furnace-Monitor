@@ -38,11 +38,15 @@ def furnacePush(sensorId, value):
     try:
         response = requests.post(url, json=data, headers=headers)
     except Exception as e:
-        print(str(e))
-
-    print(response.json())
-
-    print(response.status_code)
-
+        print("ISSUE WITH CALLING SERVER, RETURNING CONTROL TO CALLER")
+        return
+        
+    if not response.ok:
+        print("ISSUE ON NEMO'S END (IF [404] CHECK url), RETURNING CONTROL TO CALLER")
+        return
+    else:
+        print(f"""FURNACE STATUS SENT AND RECEIVED <{response.status_code}>""")
+        print(response.json())
+        
 
    

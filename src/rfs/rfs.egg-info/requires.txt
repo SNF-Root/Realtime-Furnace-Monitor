@@ -1,0 +1,10 @@
+click==8.1.7
+dotenv==0.9.9
+fastapi==0.116.1
+numpy<2.2,>=1.26
+opencv-contrib-python==4.11.0.86
+pydantic==2.11.7
+pydantic_core==2.33.2
+python-dotenv==1.1.1
+requests==2.32.4
+uvicorn==0.34.3

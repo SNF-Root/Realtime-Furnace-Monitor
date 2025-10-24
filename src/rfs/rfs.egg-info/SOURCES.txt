@@ -1,0 +1,7 @@
+setup.py
+rfs.egg-info/PKG-INFO
+rfs.egg-info/SOURCES.txt
+rfs.egg-info/dependency_links.txt
+rfs.egg-info/entry_points.txt
+rfs.egg-info/requires.txt
+rfs.egg-info/top_level.txt
